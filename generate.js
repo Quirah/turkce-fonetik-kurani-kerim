@@ -36,13 +36,15 @@ const { result, startTokens, endTokens, stats } = convertAll(wbwData, turkishDat
 // Transfer tajweed marks from WBW to Turkish output:
 //   n → m/v/y/l/r     — idgam (tanwin/nun assimilates into next consonant)
 //   q → g             — ق (kaf-ı kalın) okunuşu g
-//   ḍ  (U+0323)       — kalın d (ض)
-//   ṭ  (U+0323)       — kalın t (ط)
-//   ẓ  (U+0323)       — kalın/peltek z (ظ)
 //   z̲ / s̲  (U+0332)   — peltek z / peltek s (ذ, ث)
-const COMBINING_LOW_LINE = "\u0332"; // underline for peltek (ذ, ث)
-const COMBINING_DOT_BELOW = "\u0323"; // dot below for kalın letters (ح, ض, ط, ظ)
-const COMBINING_BREVE_BELOW_MARK = "\u032E"; // breve below for خ (ḫ)
+//   ḋ  (U+0307)       — kalın d (ض)
+//   ṫ  (U+0307)       — kalın t (ط)
+//   ż̲ (U+0332+U+0307) — kalın+peltek z (ظ)
+//   h̄ (U+0304)        — kalın h (ح)
+//   ḣ (U+0307)        — kh / hı (خ)
+const COMBINING_LOW_LINE = "\u0332"; // underline for peltek (ذ, ث, ظ)
+const COMBINING_DOT_ABOVE = "\u0307"; // dot above for kalın letters (ض, ط, ظ, خ)
+const COMBINING_MACRON = "\u0304"; // overline for kalın h (ح)
 
 // Strip diacritics + turn wbw char into its Turkish equivalent consonant
 function wbwLastConsonant(wbwWord) {
@@ -149,10 +151,13 @@ function applyTajweedMarks(wbwWord, turkishWord) {
     (l) => l.marks.includes(DOT_BELOW) && !l.marks.includes(BREVE_BELOW),
     COMBINING_LOW_LINE);
 
-  // 2b. ظ (zı) = z+BREVE_BELOW+DOT_BELOW → dot below (kalın peltek)
+  // 2b. ظ (zı) = z+BREVE_BELOW+DOT_BELOW → peltek (underline) + kalın (dot above)
   trResult = applyMark(trResult, wbwZs, ["z"],
     (l) => l.marks.includes(BREVE_BELOW),
-    COMBINING_DOT_BELOW);
+    COMBINING_LOW_LINE);
+  trResult = applyMark(trResult, wbwZs, ["z"],
+    (l) => l.marks.includes(BREVE_BELOW),
+    COMBINING_DOT_ABOVE);
 
   // 3. Peltek s: ث = s+BREVE_BELOW
   const wbwSs = scanLetterMarks(wbwNFD, ["s"]);
@@ -162,12 +167,12 @@ function applyTajweedMarks(wbwWord, turkishWord) {
   // 4. Kalın d (ض): d + DOT_BELOW in WBW
   const wbwDs = scanLetterMarks(wbwNFD, ["d"]);
   trResult = applyMark(trResult, wbwDs, ["d"],
-    (l) => l.marks.includes(DOT_BELOW), COMBINING_DOT_BELOW);
+    (l) => l.marks.includes(DOT_BELOW), COMBINING_DOT_ABOVE);
 
   // 5. Kalın t (ط): t + DOT_BELOW in WBW
   const wbwTs = scanLetterMarks(wbwNFD, ["t"]);
   trResult = applyMark(trResult, wbwTs, ["t"],
-    (l) => l.marks.includes(DOT_BELOW), COMBINING_DOT_BELOW);
+    (l) => l.marks.includes(DOT_BELOW), COMBINING_DOT_ABOVE);
 
   // 6. h classification in WBW:
   //    ه = plain h
@@ -206,7 +211,7 @@ function applyTajweedMarks(wbwWord, turkishWord) {
       const type = wbwHTypes[i];
       if (type === "plain") continue;
       const pos = trHPositions[i] + offset;
-      const mark = type === "dot" ? COMBINING_DOT_BELOW : COMBINING_BREVE_BELOW_MARK;
+      const mark = type === "dot" ? COMBINING_MACRON : COMBINING_DOT_ABOVE;
       out = out.slice(0, pos + 1) + mark + out.slice(pos + 1);
       offset++;
     }
