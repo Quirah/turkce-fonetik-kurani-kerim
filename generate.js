@@ -29,6 +29,40 @@ const turkishData = JSON.parse(
   )
 );
 
+const arabicData = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "data/arabic-uthmani.json"), "utf-8")
+);
+
+// Classify Arabic consonants for tajweed marking.
+// Returns an array of {cls, type} in orthographic order, one per Arabic consonant.
+//   cls  — which Turkish letter class this maps to (z/d/t/s/h/k)
+//   type — subclass: 'plain' | 'peltek' | 'kalin' | 'peltekKalin' | 'kh' | 'q'
+const ARABIC_CLASS = {
+  "\u0630": { cls: "z", type: "peltek" }, // ذ zel
+  "\u0632": { cls: "z", type: "plain" }, // ز ze
+  "\u0638": { cls: "z", type: "peltekKalin" }, // ظ zı
+  "\u062F": { cls: "d", type: "plain" }, // د dal
+  "\u0636": { cls: "d", type: "kalin" }, // ض dad
+  "\u062A": { cls: "t", type: "plain" }, // ت te
+  "\u0637": { cls: "t", type: "kalin" }, // ط tı
+  "\u062B": { cls: "s", type: "peltek" }, // ث se
+  "\u0633": { cls: "s", type: "plain" }, // س sin
+  "\u0635": { cls: "s", type: "plain" }, // ص sad
+  "\u062D": { cls: "h", type: "kalin" }, // ح ha
+  "\u062E": { cls: "h", type: "kh" }, // خ hı
+  "\u0647": { cls: "h", type: "plain" }, // ه he
+  "\u0643": { cls: "k", type: "plain" }, // ك kef
+  "\u0642": { cls: "k", type: "q" }, // ق kaf
+};
+function classifyArabic(arWord) {
+  const out = [];
+  for (const ch of arWord) {
+    const info = ARABIC_CLASS[ch];
+    if (info) out.push(info);
+  }
+  return out;
+}
+
 console.log("Converting...");
 const { result, startTokens, endTokens, stats } = convertAll(wbwData, turkishData);
 
@@ -66,52 +100,25 @@ function trLastConsonantInfo(trWord) {
   return null;
 }
 
-function applyTajweedMarks(wbwWord, turkishWord) {
-  const wbwNFD = wbwWord.toLowerCase().replace(/[ʹʻ]/g, "").normalize("NFD");
-
-  const DOT_BELOW = 0x323;
-  const BREVE_BELOW = 0x324;
-
-  // Collect info about specific letters
-  function scanLetterMarks(nfd, targetChars) {
-    const results = [];
-    for (let i = 0; i < nfd.length; i++) {
-      const ch = nfd[i];
-      if (!targetChars.includes(ch)) continue;
-      // Collect all combining marks after this char
-      const marks = [];
-      let j = i + 1;
-      while (j < nfd.length && nfd.charCodeAt(j) >= 0x300 && nfd.charCodeAt(j) <= 0x36f) {
-        marks.push(nfd.charCodeAt(j));
-        j++;
-      }
-      results.push({ char: ch, marks });
-    }
-    return results;
-  }
-
-  // Apply a combining mark to matching letter positions in Turkish word
-  function applyMark(trWord, wbwLetters, trTargetChars, hasMark, combiningChar) {
-    // Find positions of target chars in Turkish
-    const trPositions = [];
-    for (let i = 0; i < trWord.length; i++) {
-      if (trTargetChars.includes(trWord[i])) trPositions.push(i);
-    }
-    let result = trWord;
-    let offset = 0;
-    const minLen = Math.min(wbwLetters.length, trPositions.length);
-    for (let i = 0; i < minLen; i++) {
-      if (hasMark(wbwLetters[i])) {
-        const pos = trPositions[i] + offset;
-        result = result.slice(0, pos + 1) + combiningChar + result.slice(pos + 1);
-        offset++;
-      }
-    }
-    return result;
-  }
-
+function applyTajweedMarks(wbwWord, turkishWord, arabicWord) {
   let trResult = turkishWord;
   let idgamApplied = false;
+
+  // Apply marks/replacements to Turkish letters matching a class, by ordinal index.
+  // arClasses: array of {cls,type} for this letter class (in Arabic order).
+  // applyFn: (arInfo, trChars, index) => void  — mutates trChars
+  function processClass(trWord, cls, arClasses, applyFn) {
+    const chars = [...trWord];
+    const trPositions = [];
+    for (let i = 0; i < chars.length; i++) {
+      if (chars[i] === cls) trPositions.push(i);
+    }
+    const n = Math.min(arClasses.length, trPositions.length);
+    for (let i = 0; i < n; i++) {
+      applyFn(arClasses[i], chars, trPositions[i]);
+    }
+    return chars.join("");
+  }
 
   // 0. IDGAM: replace last consonant of Turkish word with WBW's last consonant
   //    when they differ. Only when Turkish ends in n/m and WBW ends in m/v/y/l/r.
@@ -124,95 +131,105 @@ function applyTajweedMarks(wbwWord, turkishWord) {
     }
   }
 
-  // 1. ق (qaf) → g: WBW marks ق as 'q' (any, with or without dot below),
-  //    Açık Kuran writes both ك and ق as 'k'. Map q-positions to k-positions in Turkish
-  //    and replace with g.
-  const wbwKQs = []; // base letter 'k' or 'q' in order (both normalize to 'k' in Turkish)
-  for (let i = 0; i < wbwNFD.length; i++) {
-    const ch = wbwNFD[i];
-    if (ch === "k" || ch === "q") wbwKQs.push(ch);
-  }
-  const trKPositions = [];
-  for (let i = 0; i < trResult.length; i++) {
-    if (trResult[i] === "k") trKPositions.push(i);
-  }
+  // Authoritative tajweed marking from Arabic source.
+  // For each Turkish letter class, collect Arabic letters of that class in order,
+  // then align by ordinal index with Turkish positions.
+  const arClass = classifyArabic(arabicWord || "");
+  const byClass = { z: [], d: [], t: [], s: [], h: [], k: [] };
+  for (const info of arClass) byClass[info.cls].push(info);
+
+  // 1. ق (qaf) → g: replace k with g at matching positions
+  trResult = processClass(trResult, "k", byClass.k, (info, chars, pos) => {
+    if (info.type === "q") chars[pos] = "g";
+  });
+
+  // 2. z-class: ذ → z̲, ظ → ż̲, ز → z (plain)
+  //    Insert combining marks after the z.
   {
-    const chars = trResult.split("");
-    const minLen = Math.min(wbwKQs.length, trKPositions.length);
-    for (let i = 0; i < minLen; i++) {
-      if (wbwKQs[i] === "q") chars[trKPositions[i]] = "g";
-    }
-    trResult = chars.join("");
-  }
-
-  // 2a. ذ (zel) = z+DOT_BELOW only → underline (peltek)
-  const wbwZs = scanLetterMarks(wbwNFD, ["z"]);
-  trResult = applyMark(trResult, wbwZs, ["z"],
-    (l) => l.marks.includes(DOT_BELOW) && !l.marks.includes(BREVE_BELOW),
-    COMBINING_LOW_LINE);
-
-  // 2b. ظ (zı) = z+BREVE_BELOW+DOT_BELOW → peltek (underline) + kalın (dot above)
-  trResult = applyMark(trResult, wbwZs, ["z"],
-    (l) => l.marks.includes(BREVE_BELOW),
-    COMBINING_LOW_LINE);
-  trResult = applyMark(trResult, wbwZs, ["z"],
-    (l) => l.marks.includes(BREVE_BELOW),
-    COMBINING_DOT_ABOVE);
-
-  // 3. Peltek s: ث = s+BREVE_BELOW
-  const wbwSs = scanLetterMarks(wbwNFD, ["s"]);
-  trResult = applyMark(trResult, wbwSs, ["s"],
-    (l) => l.marks.includes(BREVE_BELOW), COMBINING_LOW_LINE);
-
-  // 4. Kalın d (ض): d + DOT_BELOW in WBW
-  const wbwDs = scanLetterMarks(wbwNFD, ["d"]);
-  trResult = applyMark(trResult, wbwDs, ["d"],
-    (l) => l.marks.includes(DOT_BELOW), COMBINING_DOT_ABOVE);
-
-  // 5. Kalın t (ط): t + DOT_BELOW in WBW
-  const wbwTs = scanLetterMarks(wbwNFD, ["t"]);
-  trResult = applyMark(trResult, wbwTs, ["t"],
-    (l) => l.marks.includes(DOT_BELOW), COMBINING_DOT_ABOVE);
-
-  // 6. h classification in WBW:
-  //    ه = plain h
-  //    ح = h + DOT_BELOW → kalın h (ḥ)
-  //    خ = k immediately followed by h (digraph "kh") → ḫ (breve below)
-  //    Since all three become 'h' in Turkish, build a classified list in order.
-  const wbwHTypes = []; // 'kh' | 'dot' | 'plain' per h-position in WBW
-  for (let i = 0; i < wbwNFD.length; i++) {
-    if (wbwNFD[i] !== "h") continue;
-    // Check if part of "kh" digraph (preceded by plain 'k' with no combining marks between)
-    const prev = i > 0 ? wbwNFD[i - 1] : "";
-    if (prev === "k") {
-      wbwHTypes.push("kh");
-      continue;
-    }
-    // Check for dot below after
-    let hasDot = false;
-    let j = i + 1;
-    while (j < wbwNFD.length && wbwNFD.charCodeAt(j) >= 0x300 && wbwNFD.charCodeAt(j) <= 0x36f) {
-      if (wbwNFD.charCodeAt(j) === DOT_BELOW) hasDot = true;
-      j++;
-    }
-    wbwHTypes.push(hasDot ? "dot" : "plain");
-  }
-
-  // Find h positions in Turkish and apply marks
-  const trHPositions = [];
-  for (let i = 0; i < trResult.length; i++) {
-    if (trResult[i] === "h") trHPositions.push(i);
-  }
-  {
+    const chars = [...trResult];
+    const trPositions = [];
+    for (let i = 0; i < chars.length; i++) if (chars[i] === "z") trPositions.push(i);
+    const n = Math.min(byClass.z.length, trPositions.length);
     let out = trResult;
     let offset = 0;
-    const minLen = Math.min(wbwHTypes.length, trHPositions.length);
-    for (let i = 0; i < minLen; i++) {
-      const type = wbwHTypes[i];
-      if (type === "plain") continue;
-      const pos = trHPositions[i] + offset;
-      const mark = type === "dot" ? COMBINING_MACRON : COMBINING_DOT_ABOVE;
-      out = out.slice(0, pos + 1) + mark + out.slice(pos + 1);
+    for (let i = 0; i < n; i++) {
+      const info = byClass.z[i];
+      const insertAt = trPositions[i] + offset + 1;
+      let marks = "";
+      if (info.type === "peltek") marks = COMBINING_LOW_LINE;
+      else if (info.type === "peltekKalin") marks = COMBINING_LOW_LINE + COMBINING_DOT_ABOVE;
+      if (marks) {
+        out = out.slice(0, insertAt) + marks + out.slice(insertAt);
+        offset += marks.length;
+      }
+    }
+    trResult = out;
+  }
+
+  // 3. s-class: ث → s̲ (peltek); ص, س → plain
+  {
+    const trPositions = [];
+    for (let i = 0; i < trResult.length; i++) if (trResult[i] === "s") trPositions.push(i);
+    const n = Math.min(byClass.s.length, trPositions.length);
+    let out = trResult;
+    let offset = 0;
+    for (let i = 0; i < n; i++) {
+      if (byClass.s[i].type === "peltek") {
+        const insertAt = trPositions[i] + offset + 1;
+        out = out.slice(0, insertAt) + COMBINING_LOW_LINE + out.slice(insertAt);
+        offset++;
+      }
+    }
+    trResult = out;
+  }
+
+  // 4. d-class: ض → ḋ (kalın dot above); د → plain
+  {
+    const trPositions = [];
+    for (let i = 0; i < trResult.length; i++) if (trResult[i] === "d") trPositions.push(i);
+    const n = Math.min(byClass.d.length, trPositions.length);
+    let out = trResult;
+    let offset = 0;
+    for (let i = 0; i < n; i++) {
+      if (byClass.d[i].type === "kalin") {
+        const insertAt = trPositions[i] + offset + 1;
+        out = out.slice(0, insertAt) + COMBINING_DOT_ABOVE + out.slice(insertAt);
+        offset++;
+      }
+    }
+    trResult = out;
+  }
+
+  // 5. t-class: ط → ṫ (kalın dot above); ت → plain
+  {
+    const trPositions = [];
+    for (let i = 0; i < trResult.length; i++) if (trResult[i] === "t") trPositions.push(i);
+    const n = Math.min(byClass.t.length, trPositions.length);
+    let out = trResult;
+    let offset = 0;
+    for (let i = 0; i < n; i++) {
+      if (byClass.t[i].type === "kalin") {
+        const insertAt = trPositions[i] + offset + 1;
+        out = out.slice(0, insertAt) + COMBINING_DOT_ABOVE + out.slice(insertAt);
+        offset++;
+      }
+    }
+    trResult = out;
+  }
+
+  // 6. h-class: ح → h̄ (macron); خ → ḣ (dot above); ه → plain
+  {
+    const trPositions = [];
+    for (let i = 0; i < trResult.length; i++) if (trResult[i] === "h") trPositions.push(i);
+    const n = Math.min(byClass.h.length, trPositions.length);
+    let out = trResult;
+    let offset = 0;
+    for (let i = 0; i < n; i++) {
+      const info = byClass.h[i];
+      if (info.type === "plain") continue;
+      const mark = info.type === "kalin" ? COMBINING_MACRON : COMBINING_DOT_ABOVE;
+      const insertAt = trPositions[i] + offset + 1;
+      out = out.slice(0, insertAt) + mark + out.slice(insertAt);
       offset++;
     }
     trResult = out;
@@ -279,11 +296,12 @@ function lastConsonant(w) {
 const tajweedResult = {};
 for (const [verse, words] of Object.entries(result)) {
   const wbwWords = wbwData[verse] || [];
+  const arWords = (arabicData[verse] || "").split(" ");
   const starts = startTokens[verse] || [];
   const ends = endTokens[verse] || [];
   const processed = words.map((w, i) => {
     if (i >= wbwWords.length) return { word: w, idgamApplied: false };
-    return applyTajweedMarks(wbwWords[i], w);
+    return applyTajweedMarks(wbwWords[i], w, arWords[i]);
   });
   tajweedResult[verse] = processed.map((p, i) => {
     const stripped = stripTrailingDash(p.word);
