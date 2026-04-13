@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+.claude/
+quranwbw_repo/
+
+apk-build/node_modules/
+apk-build/android/.gradle/
+apk-build/android/build/
+apk-build/android/app/build/
+apk-build/android/capacitor-cordova-android-plugins/build/
+apk-build/android/local.properties
+
+*.apk
+!turkce-fonetik-kurani-kerim.apk

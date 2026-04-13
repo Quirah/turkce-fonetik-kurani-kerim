@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Türkçe Fonetik Kuran-ı Kerim</string>
+    <string name="title_activity_main">Türkçe Fonetik Kuran-ı Kerim</string>
+    <string name="package_name">com.quirah.turkcefonetikkuran</string>
+    <string name="custom_url_scheme">com.quirah.turkcefonetikkuran</string>
+</resources>
