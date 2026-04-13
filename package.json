@@ -1,0 +1,24 @@
+{
+  "name": "kuran-turkce-satir-arasi",
+  "version": "1.0.0",
+  "description": "Kur'an-i Kerim Turkce satir arasi (word-by-word) heceli transliterasyon. QuranWBW hece yapisi + Acik Kuran Turkce fonetik verisi birlestirilmistir.",
+  "main": "src/index.js",
+  "scripts": {
+    "generate": "node generate.js"
+  },
+  "keywords": [
+    "quran",
+    "kuran",
+    "transliteration",
+    "turkish",
+    "word-by-word",
+    "satir-arasi",
+    "phonetic"
+  ],
+  "author": "Quirah",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Quirah/kuran-turkce-satir-arasi"
+  }
+}
