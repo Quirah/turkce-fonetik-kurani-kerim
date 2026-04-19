@@ -828,6 +828,38 @@ function cleanTranslit(text) {
   return text.replace(/[.;,]/g, '');
 }
 
+// Turkish syllabification: V|V if no consonant between vowels, else only last consonant joins next syllable
+const TR_VOWELS = 'aeıioöuüâAEIİOÖUÜÂ';
+function syllabifyWord(word) {
+  if (word.length < 2) return word;
+  // Group base char + trailing combining marks (tajweed diacritics) as a single cluster
+  const clusters = [];
+  for (const ch of word) {
+    const cp = ch.codePointAt(0);
+    if (cp >= 0x300 && cp <= 0x36F && clusters.length) clusters[clusters.length - 1] += ch;
+    else clusters.push(ch);
+  }
+  if (clusters.length < 2) return word;
+  const vp = [];
+  for (let i = 0; i < clusters.length; i++) if (TR_VOWELS.includes(clusters[i][0])) vp.push(i);
+  if (vp.length <= 1) return word;
+  const cuts = [];
+  for (let p = 0; p < vp.length - 1; p++) {
+    const i = vp[p], j = vp[p + 1];
+    let c = j - i - 1 === 0 ? j : j - 1;
+    while (c < clusters.length && clusters[c] === "'") c++;
+    cuts.push(c);
+  }
+  const parts = [];
+  let start = 0;
+  for (const c of cuts) { parts.push(clusters.slice(start, c).join('')); start = c; }
+  parts.push(clusters.slice(start).join(''));
+  return parts.join('-');
+}
+function syllabify(text) {
+  return text.split(' ').map(syllabifyWord).join(' ');
+}
+
 // === Screen Navigation ===
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -912,7 +944,7 @@ function renderSurah(surahNum) {
       html += '<div class="verse-wbw">';
       for (const group of groups) {
         const arText = group.arabic.join(' ');
-        const clean = cleanTranslit(group.translit).replace(/-/g, '');
+        const clean = syllabify(cleanTranslit(group.translit).replace(/-/g, ''));
         html += `<div class="wbw-word">`;
         html += `<div class="wbw-arabic">${arText}</div>`;
         html += `<div class="wbw-translit">${clean}</div>`;
