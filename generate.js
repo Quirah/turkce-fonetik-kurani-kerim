@@ -100,7 +100,7 @@ function trLastConsonantInfo(trWord) {
   return null;
 }
 
-function applyTajweedMarks(wbwWord, turkishWord, arabicWord) {
+function applyTajweedMarks(wbwWord, turkishWord, arabicWord, nextArabicWord) {
   let trResult = turkishWord;
   let idgamApplied = false;
 
@@ -137,6 +137,16 @@ function applyTajweedMarks(wbwWord, turkishWord, arabicWord) {
   const arClass = classifyArabic(arabicWord || "");
   const byClass = { z: [], d: [], t: [], s: [], h: [], k: [] };
   for (const info of arClass) byClass[info.cls].push(info);
+  // When Turkish word ends with a merge-dash, the first classifiable consonant
+  // of the next Arabic word was typically absorbed into this bubble via sandhi
+  // (e.g. "israila" + "iżkuru" → "is-ra-i-lez-" where the z comes from ذ).
+  // Append only that first consonant's class so its tajweed mark can reach the
+  // trailing Turkish position that current Arabic doesn't cover.
+  const mergesNext = /-[.,;:!?˹˺]*$/.test(turkishWord);
+  if (mergesNext && nextArabicWord) {
+    const nextClass = classifyArabic(nextArabicWord);
+    if (nextClass.length > 0) byClass[nextClass[0].cls].push(nextClass[0]);
+  }
 
   // 1. ق (qaf) → g: replace k with g at matching positions
   trResult = processClass(trResult, "k", byClass.k, (info, chars, pos) => {
@@ -301,7 +311,7 @@ for (const [verse, words] of Object.entries(result)) {
   const ends = endTokens[verse] || [];
   const processed = words.map((w, i) => {
     if (i >= wbwWords.length) return { word: w, idgamApplied: false };
-    return applyTajweedMarks(wbwWords[i], w, arWords[i]);
+    return applyTajweedMarks(wbwWords[i], w, arWords[i], arWords[i + 1]);
   });
   tajweedResult[verse] = processed.map((p, i) => {
     const stripped = stripTrailingDash(p.word);
