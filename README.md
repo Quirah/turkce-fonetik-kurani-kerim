@@ -5,6 +5,19 @@ Kur'an-ı Kerim'i **Arapça metniyle hizalı, Türkçe fonetik okunuşla** sunan
 - **Web demo:** `demo/index.html` (tek dosya)
 - **Android APK:** [GitHub Releases](https://github.com/Quirah/turkce-fonetik-kurani-kerim/releases)
 
+## Neden bu uygulama?
+
+Kur'an okumayı öğrenirken en çok işime yarayan şey evimdeki **satır arası Türkçe okunuşlu** Mushaf olmuştu. Fakat telefona geçtiğimde aynı deneyimi veren bir uygulama bulamadım: neredeyse hiçbiri Türkçe fonetik göstermiyor, gösterenler de ya kelime hizalaması sunmuyor ya da tecvidi yazıya dökmüyordu.
+
+Profesyonel yazılımcı değilim; elimdeki tek alet Claude'du. İhtiyaca odaklanarak parça parça oturttum:
+
+- **Türkçe fonetik** [Açık Kuran](https://acikkuran.com)'dan çekiliyor.
+- **Kelime bazlı bubble mekaniği** [QuranWBW](https://quranwbw.com)'nin kelime hizalı verisinden geliyor.
+- **Tecvid** (peltek, kalın, idğâm) Türkçe alfabenin karşılayamadığı sesler için birleşik Unicode işaretleriyle yazıya dökülüyor.
+- Okunuş iki farklı şekilde gruplanıyor: **Türkçe fonetiğe göre** (ortak okunan parçalar tek bubble) ve **Arapça kelimeye göre** (her kelime ayrı bubble).
+
+Amacım "mükemmel bir Kur'an uygulaması yazmak" değildi; sadece evimdeki Mushaf'ı cebime taşımaktı. Büyük ihtimalle buradan çok ileri götüremem — ama en azından açık bıraktım, kullanmak ya da üzerine bir şeyler eklemek isteyen olursa diye.
+
 ## Ekran görüntüleri
 
 | Türkçe | Arapça | Kelime (WBW) |
