@@ -15,10 +15,10 @@
     "satir-arasi",
     "phonetic"
   ],
-  "author": "Quirah",
+  "author": "skonuksal",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Quirah/kuran-turkce-satir-arasi"
+    "url": "https://github.com/skonuksal/kuran-turkce-satir-arasi"
   }
 }

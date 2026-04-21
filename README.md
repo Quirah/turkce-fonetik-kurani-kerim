@@ -3,7 +3,7 @@
 Kur'an-ı Kerim'i **Arapça metniyle hizalı, Türkçe fonetik okunuşla** sunan açık kaynaklı bir okuma uygulaması. Amaç: Arapça bilmeyenlerin Arapça metni doğru telaffuzla takip edebilmesi, kelime kelime karşılığını görebilmesi, tecvid kurallarını yazıdan okuyabilmesi.
 
 - **Web demo:** `demo/index.html` (tek dosya)
-- **Android APK:** [GitHub Releases](https://github.com/Quirah/turkce-fonetik-kurani-kerim/releases)
+- **Android APK:** [GitHub Releases](https://github.com/skonuksal/turkce-fonetik-kurani-kerim/releases)
 
 ## Neden bu uygulama?
 
@@ -155,7 +155,7 @@ APK'yı telefona yüklemek için Android'de "Bilinmeyen kaynaklardan yükle" izn
 [Obtainium](https://obtainium.imranr.dev), GitHub Releases'tan doğrudan APK kurup otomatik güncelleme takibi yapan bir uygulamadır.
 
 1. Obtainium'u kur (F-Droid veya kendi GitHub Releases'ı).
-2. **Add App** → URL alanına `https://github.com/Quirah/turkce-fonetik-kurani-kerim` yapıştır.
+2. **Add App** → URL alanına `https://github.com/skonuksal/turkce-fonetik-kurani-kerim` yapıştır.
 3. **Add** → **Install**. Sonraki sürümler Obtainium'dan tek tıkla güncellenir.
 
 ## Lisans
