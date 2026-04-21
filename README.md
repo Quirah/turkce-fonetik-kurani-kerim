@@ -5,6 +5,12 @@ Kur'an-ı Kerim'i **Arapça metniyle hizalı, Türkçe fonetik okunuşla** sunan
 - **Web demo:** `demo/index.html` (tek dosya)
 - **Android APK:** [GitHub Releases](https://github.com/Quirah/turkce-fonetik-kurani-kerim/releases)
 
+## Ekran görüntüleri
+
+| Türkçe | Arapça | Kelime (WBW) |
+|---|---|---|
+| ![Türkçe modu](screenshots/2.jpg) | ![Arapça modu](screenshots/1.jpg) | ![Kelime modu](screenshots/3.jpg) |
+
 ## Özellikler
 
 - **114 sure** + cüz (30) + sayfa (604) dropdown gezintisi
@@ -130,6 +136,14 @@ cd android
 ```
 
 APK'yı telefona yüklemek için Android'de "Bilinmeyen kaynaklardan yükle" izni gerekir.
+
+### Obtainium ile otomatik güncelleme
+
+[Obtainium](https://obtainium.imranr.dev), GitHub Releases'tan doğrudan APK kurup otomatik güncelleme takibi yapan bir uygulamadır.
+
+1. Obtainium'u kur (F-Droid veya kendi GitHub Releases'ı).
+2. **Add App** → URL alanına `https://github.com/Quirah/turkce-fonetik-kurani-kerim` yapıştır.
+3. **Add** → **Install**. Sonraki sürümler Obtainium'dan tek tıkla güncellenir.
 
 ## Lisans
 
